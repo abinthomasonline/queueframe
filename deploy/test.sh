@@ -2,8 +2,7 @@
 
 set -eu
 
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-REPO_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 TEST_DIR=$(mktemp -d "${TMPDIR:-/tmp}/queueframe-deploy-test.XXXXXX")
 DOMAIN_ENV=$TEST_DIR/domain.env
 TAILSCALE_ENV=$TEST_DIR/tailscale.env
@@ -280,7 +279,10 @@ ok 'proxy images are digest-pinned and IP certificates select shortlived'
 
 grep -Fq 'header_up X-Forwarded-For {remote_host}' "$SCRIPT_DIR/caddy/Caddyfile.domain" || fail_test 'domain Caddy does not replace client-supplied forwarding chains'
 grep -Fq 'header_up X-Forwarded-For {remote_host}' "$SCRIPT_DIR/caddy/Caddyfile.public-ip" || fail_test 'public-IP Caddy does not replace client-supplied forwarding chains'
+# These assertions intentionally match unexpanded Compose variable syntax.
+# shellcheck disable=SC2016
 grep -Fq 'QUEUEFRAME_TRUSTED_PROXY_CIDRS: ${QUEUEFRAME_DOCKER_SUBNET:-172.30.255.0/24},127.0.0.0/8,::1/128' "$SCRIPT_DIR/compose.yaml" || fail_test 'Queueframe does not limit trusted proxies to its dedicated bridge plus loopback'
+# shellcheck disable=SC2016
 grep -Fq 'subnet: ${QUEUEFRAME_DOCKER_SUBNET:-172.30.255.0/24}' "$SCRIPT_DIR/compose.yaml" || fail_test 'Compose IPAM does not use the dedicated proxy subnet'
 ok 'proxy trust is limited to the dedicated bridge and sanitized forwarding headers'
 
@@ -291,6 +293,8 @@ grep -Fq 'existing_container_env_is_empty queueframe QUEUEFRAME_ADMIN_PASSWORD' 
 grep -Fq 'STALE_CONTAINER_CREDENTIALS=true' "$SCRIPT_DIR/seal.sh" || fail_test 'seal does not recreate already-sealed stacks with stale container metadata'
 grep -Fq 'container_env_is_empty queueframe QUEUEFRAME_ADMIN_PASSWORD' "$SCRIPT_DIR/seal.sh" || fail_test 'seal does not verify the Queueframe bootstrap value is empty'
 grep -Fq 'container_env_is_empty tailscale TS_AUTHKEY' "$SCRIPT_DIR/seal.sh" || fail_test 'seal does not verify the Tailscale auth key is empty'
+# This assertion intentionally matches shell variable syntax literally.
+# shellcheck disable=SC2016
 grep -Fq 'TAILSCALE_ACTUAL_DNS" = "$TAILSCALE_FQDN_VALUE' "$SCRIPT_DIR/doctor.sh" || fail_test 'running doctor does not compare actual and configured Tailscale DNS names'
 ok 'seal repairs prior/manual scrubs and inspects fresh containers; doctor binds Tailscale to its actual DNS name'
 

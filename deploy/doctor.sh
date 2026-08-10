@@ -2,7 +2,7 @@
 
 set -u
 
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 ENV_FILE=${QUEUEFRAME_DEPLOY_ENV_FILE:-"$SCRIPT_DIR/.env"}
 COMPOSE_FILE=$SCRIPT_DIR/compose.yaml
 CHECK_RUNNING=false
@@ -304,10 +304,26 @@ domain)
 	HOSTNAME_VALUE=$(env_value QUEUEFRAME_HOSTNAME)
 	INGRESS_IP=$(env_value QUEUEFRAME_INGRESS_IP)
 	ACME_EMAIL_VALUE=$(env_value ACME_EMAIL)
-	qf_valid_domain "$HOSTNAME_VALUE" && pass 'domain hostname is valid' || fail 'QUEUEFRAME_HOSTNAME is invalid'
-	qf_valid_ip "$INGRESS_IP" && pass 'domain ingress IP is valid' || fail 'QUEUEFRAME_INGRESS_IP is invalid'
-	qf_valid_email "$ACME_EMAIL_VALUE" && pass 'ACME contact email is valid' || fail 'ACME_EMAIL is invalid'
-	[ "$BASE_URL" = "https://$HOSTNAME_VALUE" ] && pass 'base URL matches domain hostname' || fail 'base URL does not match domain hostname'
+	if qf_valid_domain "$HOSTNAME_VALUE"; then
+		pass 'domain hostname is valid'
+	else
+		fail 'QUEUEFRAME_HOSTNAME is invalid'
+	fi
+	if qf_valid_ip "$INGRESS_IP"; then
+		pass 'domain ingress IP is valid'
+	else
+		fail 'QUEUEFRAME_INGRESS_IP is invalid'
+	fi
+	if qf_valid_email "$ACME_EMAIL_VALUE"; then
+		pass 'ACME contact email is valid'
+	else
+		fail 'ACME_EMAIL is invalid'
+	fi
+	if [ "$BASE_URL" = "https://$HOSTNAME_VALUE" ]; then
+		pass 'base URL matches domain hostname'
+	else
+		fail 'base URL does not match domain hostname'
+	fi
 	if qf_valid_domain "$HOSTNAME_VALUE" && qf_valid_ip "$INGRESS_IP"; then
 		check_dns "$HOSTNAME_VALUE" "$INGRESS_IP"
 	fi
@@ -320,11 +336,25 @@ tailscale)
 	TAILSCALE_HOSTNAME_VALUE=$(env_value TAILSCALE_HOSTNAME)
 	TAILSCALE_AUTHKEY_VALUE=$(env_value TAILSCALE_AUTHKEY)
 	case $TAILSCALE_FQDN_VALUE in
-	*.ts.net) qf_valid_domain "$TAILSCALE_FQDN_VALUE" && pass 'Tailscale HTTPS name is valid' || fail 'TAILSCALE_FQDN is invalid' ;;
+	*.ts.net)
+		if qf_valid_domain "$TAILSCALE_FQDN_VALUE"; then
+			pass 'Tailscale HTTPS name is valid'
+		else
+			fail 'TAILSCALE_FQDN is invalid'
+		fi
+		;;
 	*) fail 'TAILSCALE_FQDN must be a full .ts.net name' ;;
 	esac
-	qf_valid_node_name "$TAILSCALE_HOSTNAME_VALUE" && pass 'Tailscale node hostname is valid' || fail 'TAILSCALE_HOSTNAME is invalid'
-	[ "$BASE_URL" = "https://$TAILSCALE_FQDN_VALUE" ] && pass 'base URL matches Tailscale HTTPS name' || fail 'base URL does not match Tailscale HTTPS name'
+	if qf_valid_node_name "$TAILSCALE_HOSTNAME_VALUE"; then
+		pass 'Tailscale node hostname is valid'
+	else
+		fail 'TAILSCALE_HOSTNAME is invalid'
+	fi
+	if [ "$BASE_URL" = "https://$TAILSCALE_FQDN_VALUE" ]; then
+		pass 'base URL matches Tailscale HTTPS name'
+	else
+		fail 'base URL does not match Tailscale HTTPS name'
+	fi
 	if [ -n "$TAILSCALE_AUTHKEY_VALUE" ]; then
 		case $TAILSCALE_AUTHKEY_VALUE in
 		tskey-*) warn 'Tailscale auth key remains stored; run deploy/seal.sh after healthy initial join' ;;
@@ -340,11 +370,27 @@ public-ip)
 	INGRESS_IP=$(env_value QUEUEFRAME_INGRESS_IP)
 	CADDY_IP_SITE=$(env_value QUEUEFRAME_CADDY_IP_SITE)
 	ACME_EMAIL_VALUE=$(env_value ACME_EMAIL)
-	qf_valid_ip "$INGRESS_IP" && pass 'public ingress IP is valid' || fail 'QUEUEFRAME_INGRESS_IP is invalid'
-	qf_valid_email "$ACME_EMAIL_VALUE" && pass 'ACME contact email is valid' || fail 'ACME_EMAIL is invalid'
+	if qf_valid_ip "$INGRESS_IP"; then
+		pass 'public ingress IP is valid'
+	else
+		fail 'QUEUEFRAME_INGRESS_IP is invalid'
+	fi
+	if qf_valid_email "$ACME_EMAIL_VALUE"; then
+		pass 'ACME contact email is valid'
+	else
+		fail 'ACME_EMAIL is invalid'
+	fi
 	EXPECTED_IP_SITE=$(qf_url_for_ip "$INGRESS_IP")
-	[ "$BASE_URL" = "$EXPECTED_IP_SITE" ] && pass 'base URL matches public ingress IP' || fail 'base URL does not match public ingress IP'
-	[ "$CADDY_IP_SITE" = "$EXPECTED_IP_SITE" ] && pass 'Caddy site address matches public ingress IP' || fail 'QUEUEFRAME_CADDY_IP_SITE does not match public ingress IP'
+	if [ "$BASE_URL" = "$EXPECTED_IP_SITE" ]; then
+		pass 'base URL matches public ingress IP'
+	else
+		fail 'base URL does not match public ingress IP'
+	fi
+	if [ "$CADDY_IP_SITE" = "$EXPECTED_IP_SITE" ]; then
+		pass 'Caddy site address matches public ingress IP'
+	else
+		fail 'QUEUEFRAME_CADDY_IP_SITE does not match public ingress IP'
+	fi
 	if [ "$CHECK_RUNNING" = false ]; then
 		check_public_ports
 	fi
@@ -373,16 +419,32 @@ fi
 
 if [ "$CHECK_RUNNING" = true ] && command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
 	RUNNING_SERVICES=$(docker compose --project-directory "$SCRIPT_DIR" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps --status running --services 2>/dev/null || true)
-	printf '%s\n' "$RUNNING_SERVICES" | grep -qx queueframe && pass 'Queueframe container is running' || fail 'Queueframe container is not running'
+	if printf '%s\n' "$RUNNING_SERVICES" | grep -qx queueframe; then
+		pass 'Queueframe container is running'
+	else
+		fail 'Queueframe container is not running'
+	fi
 	case $DEPLOY_MODE in
 	domain)
-		printf '%s\n' "$RUNNING_SERVICES" | grep -qx caddy-domain && pass 'domain Caddy container is running' || fail 'domain Caddy container is not running'
+		if printf '%s\n' "$RUNNING_SERVICES" | grep -qx caddy-domain; then
+			pass 'domain Caddy container is running'
+		else
+			fail 'domain Caddy container is not running'
+		fi
 		;;
 	public-ip)
-		printf '%s\n' "$RUNNING_SERVICES" | grep -qx caddy-public-ip && pass 'public-IP Caddy container is running' || fail 'public-IP Caddy container is not running'
+		if printf '%s\n' "$RUNNING_SERVICES" | grep -qx caddy-public-ip; then
+			pass 'public-IP Caddy container is running'
+		else
+			fail 'public-IP Caddy container is not running'
+		fi
 		;;
 	tailscale)
-		printf '%s\n' "$RUNNING_SERVICES" | grep -qx tailscale && pass 'Tailscale container is running' || fail 'Tailscale container is not running'
+		if printf '%s\n' "$RUNNING_SERVICES" | grep -qx tailscale; then
+			pass 'Tailscale container is running'
+		else
+			fail 'Tailscale container is not running'
+		fi
 		TAILSCALE_STATUS_JSON=$(docker compose --project-directory "$SCRIPT_DIR" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T tailscale tailscale status --json 2>/dev/null || true)
 		TAILSCALE_BACKEND=$(printf '%s\n' "$TAILSCALE_STATUS_JSON" | qf_tailscale_backend_from_status)
 		TAILSCALE_ACTUAL_DNS=$(printf '%s\n' "$TAILSCALE_STATUS_JSON" | qf_tailscale_dns_from_status)

@@ -2,7 +2,7 @@
 
 set -eu
 
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 ENV_FILE=${QUEUEFRAME_DEPLOY_ENV_FILE:-"$SCRIPT_DIR/.env"}
 COMPOSE_FILE=$SCRIPT_DIR/compose.yaml
 

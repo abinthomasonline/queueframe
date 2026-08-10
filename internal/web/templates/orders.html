@@ -1,0 +1,121 @@
+{{define "trader_orders_content"}}
+<header class="page-header">
+  <div>
+    <p class="eyebrow">Scheduled queue</p>
+    <h1>Orders</h1>
+    <p class="page-summary">Arrange the sequence before the queue freezes. The first ten orders share the first dispatch batch.</p>
+  </div>
+  <a class="button button-primary" href="/orders/new"><span aria-hidden="true">+</span> Create order</a>
+</header>
+
+{{if .Activation.Visible}}
+<section class="activation-banner {{.Activation.CSSClass}}" aria-label="Daily Kite activation status" {{if not .Activation.RefreshAt.IsZero}}data-refresh-at="{{.Activation.RefreshAt.UnixMilli}}"{{end}}>
+  <span class="activation-mark" aria-hidden="true">{{.Activation.Mark}}</span>
+  <div><strong>{{.Activation.Title}}</strong><p>{{.Activation.Message}}</p></div>
+  {{if .Activation.ShowAction}}<form method="post" action="/signin"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="client_id" value="{{.Trader.ClientID}}"><button class="button button-secondary" type="submit">{{.Activation.ActionLabel}}</button></form>{{end}}
+</section>
+{{end}}
+
+<div class="orders-layout">
+  <section class="panel queue-panel" aria-labelledby="queue-title">
+    <div class="queue-toolbar">
+      <div>
+        <p class="eyebrow">Execution date</p>
+        <h2 id="queue-title">{{if .SelectedDate}}{{.SelectedDate}}{{else}}Today’s queue{{end}}</h2>
+      </div>
+      <form class="date-filter" method="get" action="/orders">
+        <label for="orders-date">View date</label>
+        <input id="orders-date" type="date" name="date" value="{{.SelectedDate}}">
+        <button class="button button-tertiary" type="submit">View</button>
+      </form>
+    </div>
+
+    <div class="queue-meta">
+      <span><strong>{{len .OrderRows}}</strong> of {{.MaxOrdersPerDate}} orders</span>
+      <span>Dispatch begins <strong>{{.DispatchTime}} IST</strong></span>
+      {{if .QueueFrozen}}<span class="status-chip status-neutral">Queue frozen</span>{{else}}<span class="status-chip status-info">Editable until {{.FreezeTime}} IST</span>{{end}}
+    </div>
+
+    {{if .OrderRows}}
+    <div class="order-queue" data-reorder-list data-reorder-url="/orders/reorder" data-queue-revision="{{.QueueRevision}}" data-execution-date="{{.SelectedDate}}" data-dispatch-base="{{.DispatchTime}}" data-batch-size="10" data-batch-gap-ms="{{.BatchGapMillis}}">
+      <input type="hidden" data-reorder-csrf value="{{.CSRF}}">
+      <p class="visually-hidden" data-reorder-status aria-live="polite" aria-atomic="true"></p>
+      {{range .OrderRows}}
+      {{if .StartsBatch}}
+      <div class="batch-divider" data-batch-divider>
+        <span>Batch {{.Batch}}</span>
+        <time data-batch-time>{{.PlannedTime}} IST</time>
+      </div>
+      {{end}}
+      <article class="order-row{{if not .Mutable}} is-locked{{end}}" data-reorder-item data-order-id="{{.ID}}" data-symbol="{{.Params.TradingSymbol}}" {{if .Mutable}}draggable="true"{{end}}>
+        <div class="order-position">
+          {{if .Mutable}}<button class="drag-handle" type="button" aria-label="Drag {{.Params.TradingSymbol}} to reorder" title="Drag to reorder"><span aria-hidden="true">⠿</span></button>{{end}}
+          <span class="position-number" data-position aria-label="Queue position {{.Position}}">{{.Position}}</span>
+        </div>
+        <div class="order-identity">
+          <div class="symbol-line"><strong>{{.Params.TradingSymbol}}</strong><span class="exchange-tag">{{.Params.Exchange}}</span></div>
+          <p><span class="side-label">{{.Params.TransactionType}}</span> · {{.Params.Product}} · {{.Params.Quantity}} shares · {{.Params.OrderType}}{{if .Params.Price}} at ₹{{.Params.Price}}{{end}}</p>
+          <p class="mobile-dispatch"><time data-planned-time>{{.PlannedTime}} IST</time> <span>· if active</span></p>
+        </div>
+        <div class="order-dispatch">
+          <span>Planned request start</span>
+          <time class="numeric" data-planned-time>{{.PlannedTime}} IST</time>
+          <small>Batch <span data-batch-number>{{.Batch}}</span> · if active</small>
+        </div>
+        <div class="order-state"><span class="status-chip status-{{.State}}">{{.State}}</span></div>
+        <div class="order-actions">
+          {{if .Mutable}}
+          <div class="reorder-buttons" aria-label="Reorder {{.Params.TradingSymbol}}">
+            <button class="icon-button" type="button" data-move="up" aria-label="Move {{.Params.TradingSymbol}} up one position" title="Move up">↑</button>
+            <button class="icon-button" type="button" data-move="down" aria-label="Move {{.Params.TradingSymbol}} down one position" title="Move down">↓</button>
+          </div>
+          <form method="post" action="/orders/{{.ID}}/delete" data-confirm="Delete {{.Params.TradingSymbol}} from this queue?">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <button class="icon-button icon-danger" type="submit" aria-label="Delete {{.Params.TradingSymbol}}" title="Delete order">×</button>
+          </form>
+          {{else}}<span class="locked-label">Locked</span>{{end}}
+        </div>
+      </article>
+      {{end}}
+    </div>
+    {{else}}
+    <div class="empty-state">
+      <div class="empty-mark" aria-hidden="true">≡</div>
+      <h3>No orders for this date</h3>
+      <p>Create an order now; you can rearrange the queue until {{.FreezeTime}} IST on its execution date.</p>
+      <a class="button button-secondary" href="/orders/new">Create the first order</a>
+    </div>
+    {{end}}
+  </section>
+
+  <aside class="panel caveat-panel" aria-labelledby="caveats-title">
+    <div class="caveat-heading">
+      <span class="notice-icon" aria-hidden="true">!</span>
+      <div><p class="eyebrow">Before you rely on a dispatch</p><h2 id="caveats-title">Know the limits</h2></div>
+    </div>
+    <ul class="caveat-list">
+      <li>Stocks under surveillance may reject API orders when broker or exchange consent is required.</li>
+      <li>An order may fail because of funds, holdings, quantity, lot or freeze size, circuit or LPP limits, product eligibility, or other broker and exchange checks.</li>
+      <li>Orders dispatch beginning at <strong>{{.DispatchTime}} IST</strong>. Queueframe sends each order once and does not retry an order-placement request.</li>
+      <li>Trader login is unavailable between <strong>{{.BlackoutStart}} and {{.BlackoutEnd}} IST</strong>.</li>
+      <li>Zerodha documents limits of ten order requests per second and 400 per minute per client account. Reorder the queue to choose which orders enter each batch.</li>
+      <li>You must complete Kite login between <strong>06:00 and {{.BlackoutStart}} IST on the execution date</strong> for that date’s orders to be active.</li>
+    </ul>
+    <details class="inline-disclosure">
+      <summary>Delivery sells and DDPI <span class="disclosure-marker" aria-hidden="true"></span></summary>
+      <div>
+        <p>A delivery sell may fail without DDPI or separate same-day CDSL TPIN authorisation. Queueframe does not perform either flow.</p>
+        <ol>
+          <li>Open Zerodha Console.</li>
+          <li>Go to <strong>Account → Demat</strong>.</li>
+          <li>Select <strong>Enable DDPI</strong> and continue to e-sign.</li>
+          <li>Complete Aadhaar OTP verification and signing.</li>
+        </ol>
+      </div>
+    </details>
+    <p class="caveat-footnote">A planned request time is not a promise of OMS acceptance, exchange receipt, matching, or execution.</p>
+  </aside>
+</div>
+{{end}}
+
+{{define "orders"}}{{template "header" .}}{{template "trader_orders_content" .}}{{template "footer" .}}{{end}}

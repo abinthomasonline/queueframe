@@ -1,0 +1,38 @@
+{{define "admin_orders"}}{{template "header" .}}
+<header class="page-header"><div><p class="eyebrow">Cross-account queues</p><h1>All orders</h1><p class="page-summary">Inspect and modify unfrozen queues. A frozen execution date remains read-only for every operator.</p></div></header>
+
+<section class="panel data-panel">
+  <form class="filter-bar admin-filter-bar" method="get" action="/admin/orders">
+    <div class="field compact-field"><label for="admin-order-date">Execution date</label><input id="admin-order-date" type="date" name="date" value="{{.SelectedDate}}"></div>
+    <div class="field compact-field"><label for="admin-order-client">Client ID</label><input id="admin-order-client" name="client_id" value="{{.SelectedClientID}}" placeholder="All traders" autocapitalize="characters"></div>
+    <div class="field compact-field"><label for="admin-order-state">State</label><select id="admin-order-state" name="state"><option value="">All states</option>{{range .OrderStates}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}</select></div>
+    <button class="button button-tertiary" type="submit">Apply filters</button><a class="text-link" href="/admin/orders">Clear</a>
+  </form>
+</section>
+
+{{if .AdminQueues}}
+<div class="admin-queues">
+{{range .AdminQueues}}
+  <section class="panel admin-queue-card" aria-labelledby="queue-{{.TraderID}}-{{.ExecutionDate}}">
+    <div class="queue-toolbar">
+      <div><p class="eyebrow">{{.ExecutionDate}}</p><h2 id="queue-{{.TraderID}}-{{.ExecutionDate}}">{{.ClientID}}</h2></div>
+      <div class="queue-card-state"><span>{{len .OrderRows}} orders</span>{{if .Frozen}}<span class="status-chip status-neutral">Frozen</span>{{else}}<span class="status-chip status-info">Editable until {{.FreezeTime}} IST</span>{{end}}</div>
+    </div>
+    <div class="order-queue admin-order-queue" data-reorder-list data-reorder-url="/admin/orders/reorder" data-queue-revision="{{.Revision}}" data-dispatch-base="{{.DispatchTime}}" data-batch-size="10" data-batch-gap-ms="{{.BatchGapMillis}}" data-trader-id="{{.TraderID}}" data-execution-date="{{.ExecutionDate}}">
+      <input type="hidden" data-reorder-csrf value="{{$.CSRF}}"><p class="visually-hidden" data-reorder-status aria-live="polite"></p>
+      {{range .OrderRows}}
+      {{if .StartsBatch}}<div class="batch-divider" data-batch-divider><span>Batch {{.Batch}}</span><time data-batch-time>{{.PlannedTime}} IST</time></div>{{end}}
+      <article class="order-row{{if not .Mutable}} is-locked{{end}}" data-reorder-item data-order-id="{{.ID}}" data-symbol="{{.Params.TradingSymbol}}" {{if .Mutable}}draggable="true"{{end}}>
+        <div class="order-position">{{if .Mutable}}<button class="drag-handle" type="button" aria-label="Drag {{.Params.TradingSymbol}} to reorder"><span aria-hidden="true">⠿</span></button>{{end}}<span class="position-number" data-position>{{.Position}}</span></div>
+        <div class="order-identity"><div class="symbol-line"><strong>{{.Params.TradingSymbol}}</strong><span class="exchange-tag">{{.Params.Exchange}}</span></div><p>{{.Params.TransactionType}} · {{.Params.Product}} · {{.Params.Quantity}} · {{.Params.OrderType}}{{if .Params.Price}} at ₹{{.Params.Price}}{{end}}</p><p class="mobile-dispatch"><time data-planned-time>{{.PlannedTime}} IST</time> · if active</p></div>
+        <div class="order-dispatch"><span>Planned request start</span><time class="numeric" data-planned-time>{{.PlannedTime}} IST</time><small>Batch <span data-batch-number>{{.Batch}}</span> · if active</small></div>
+        <div class="order-state"><span class="status-chip status-{{.State}}">{{.State}}</span></div>
+        <div class="order-actions">{{if .Mutable}}<div class="reorder-buttons"><button class="icon-button" type="button" data-move="up" aria-label="Move {{.Params.TradingSymbol}} up">↑</button><button class="icon-button" type="button" data-move="down" aria-label="Move {{.Params.TradingSymbol}} down">↓</button></div><a class="icon-button" href="/admin/orders/{{.ID}}/edit" aria-label="Edit {{.Params.TradingSymbol}}">✎</a><form method="post" action="/admin/orders/{{.ID}}/delete" data-confirm="Delete {{.Params.TradingSymbol}} from {{$.SelectedDate}}?"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="icon-button icon-danger" type="submit" aria-label="Delete {{.Params.TradingSymbol}}">×</button></form>{{else}}<span class="locked-label">Locked</span>{{end}}</div>
+      </article>
+      {{end}}
+    </div>
+  </section>
+{{end}}
+</div>
+{{else}}<section class="panel empty-state"><div class="empty-mark" aria-hidden="true">≡</div><h2>No matching order queues</h2><p>Try a different date, client ID, or state.</p></section>{{end}}
+{{template "footer" .}}{{end}}

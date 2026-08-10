@@ -1,0 +1,67 @@
+{{define "admin_invites"}}{{template "header" .}}
+<header class="page-header">
+  <div><p class="eyebrow">Controlled onboarding</p><h1>Invitations</h1><p class="page-summary">Create a single-use link before a new household trader connects a Zerodha account. Returning-user Kite sign-in never needs an invitation.</p></div>
+</header>
+
+{{if .GeneratedInviteURL}}
+<section class="panel invite-created" aria-labelledby="invite-created-title">
+  <div class="panel-heading"><div><p class="eyebrow">Created successfully</p><h2 id="invite-created-title">Copy this link now</h2></div><span class="status-chip status-warning">Shown once</span></div>
+  <p>The bearer token cannot be recovered later. Send the complete link only to the intended household member.</p>
+  <div class="copy-field invite-copy-field">
+    <span>Single-use signup link</span>
+    <code id="generated-invite-url">{{.GeneratedInviteURL}}</code>
+    <button class="copy-button" type="button" data-copy-target="generated-invite-url">Copy<span class="visually-hidden"> signup invitation link</span></button>
+  </div>
+</section>
+{{end}}
+
+<div class="invite-layout">
+  <form method="post" action="/admin/invites" class="panel invite-form" data-disable-on-submit>
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <div class="panel-heading"><div><p class="eyebrow">New household member</p><h2>Create invitation</h2></div></div>
+    <p>Each link starts at most one first-time Kite verification and is permanently consumed only after that verification succeeds.</p>
+    <div class="field">
+      <label for="invite-days">Link lifetime</label>
+      <div class="suffix-input"><input id="invite-days" type="number" name="expires_in_days" min="1" max="30" value="7" required><span>days</span></div>
+      <p class="field-hint">Choose 1–30 days. A flow already in verification holds the invitation for five minutes.</p>
+    </div>
+    <button class="button button-primary" type="submit">Create single-use link</button>
+  </form>
+
+  <aside class="quiet-card invite-lifecycle" aria-labelledby="invite-lifecycle-title">
+    <p class="eyebrow">Safe lifecycle</p>
+    <h2 id="invite-lifecycle-title">How a link is used</h2>
+    <ol class="quiet-list">
+      <li>Opening the link stores it briefly in an HttpOnly browser cookie.</li>
+      <li>Submitting setup reserves it so a concurrent signup cannot start.</li>
+      <li>A failed or timed-out Kite check releases it for another attempt.</li>
+      <li>A verified account consumes it forever; revocation stops it immediately.</li>
+    </ol>
+  </aside>
+</div>
+
+<section class="panel data-panel" aria-labelledby="invite-history-title">
+  <div class="data-toolbar"><div><p class="eyebrow">Secret-free history</p><h2 id="invite-history-title">Issued invitations</h2></div><p class="page-summary">Only lifecycle metadata is retained. Raw link tokens are never stored.</p></div>
+  {{if .SignupInvitations}}
+  <div class="table-scroll">
+    <table class="data-table invite-table">
+      <thead><tr><th scope="col">Invitation</th><th scope="col">Status</th><th scope="col">Expires</th><th scope="col">Outcome</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+      <tbody>{{range .SignupInvitations}}
+        <tr>
+          <td data-label="Invitation"><strong>#{{.ID}}</strong><small>Created by {{.CreatedByUsername}} · {{time .CreatedAt}}</small></td>
+          <td data-label="Status">{{if eq .Status "Available"}}<span class="status-chip status-success">{{.Status}}</span>{{else if eq .Status "In verification"}}<span class="status-chip status-warning">{{.Status}}</span>{{else if eq .Status "Revoked"}}<span class="status-chip status-danger">{{.Status}}</span>{{else}}<span class="status-chip status-info">{{.Status}}</span>{{end}}</td>
+          <td data-label="Expires"><time>{{time .ExpiresAt}}</time></td>
+          <td data-label="Outcome">
+            {{if .ConsumedByTraderID}}<strong>{{.ConsumedByClientID}}</strong><small>Used {{time .ConsumedAt}}</small>
+            {{else if .RevokedByAdminID}}<span>Revoked by {{.RevokedByUsername}}</span><small>{{time .RevokedAt}}</small>
+            {{else if eq .Status "In verification"}}<span>Signup in progress</span><small>Reserved until {{time .ReservedUntil}}</small>
+            {{else}}<span class="muted">—</span>{{end}}
+          </td>
+          <td class="action-cell" data-label="Actions">{{if .CanRevoke}}<form method="post" action="/admin/invites/{{.ID}}/revoke" data-disable-on-submit><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="button button-danger-quiet" type="submit">Revoke</button></form>{{else}}<span class="muted">—</span>{{end}}</td>
+        </tr>
+      {{end}}</tbody>
+    </table>
+  </div>
+  {{else}}<div class="empty-state"><div class="empty-mark" aria-hidden="true">◇</div><h3>No invitations yet</h3><p>Create a link when a household member is ready to connect their account.</p></div>{{end}}
+</section>
+{{template "footer" .}}{{end}}

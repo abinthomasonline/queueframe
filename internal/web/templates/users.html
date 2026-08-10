@@ -1,0 +1,38 @@
+{{define "users"}}{{template "header" .}}
+<header class="page-header">
+  <div><p class="eyebrow">Trader profiles</p><h1>Users</h1><p class="page-summary">Every trader is identified by a verified Zerodha client ID. Credentials are encrypted and never displayed here.</p></div>
+</header>
+
+<section class="panel data-panel" aria-labelledby="users-title">
+  <div class="data-toolbar">
+    <div><p class="eyebrow">Household instance</p><h2 id="users-title">Connected traders</h2></div>
+    <form class="filter-bar" method="get" action="/admin/users"><div class="field compact-field search-field"><label for="user-search">Find client ID</label><input id="user-search" name="q" value="{{.SearchQuery}}" placeholder="Search"></div><button class="button button-tertiary" type="submit">Search</button></form>
+  </div>
+  {{if .TraderRows}}
+  <div class="table-scroll">
+    <table class="data-table users-table">
+      <thead><tr><th scope="col">Client ID</th><th scope="col">Daily activation</th><th scope="col">Orders</th><th scope="col">Joined</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+      <tbody>{{range .TraderRows}}
+        <tr>
+          <td data-label="Client ID"><div class="table-primary"><span class="identity-avatar small-avatar" aria-hidden="true">Q</span><div><strong>{{.Trader.DisplayClientID}}</strong><small>Verified {{time .Trader.VerifiedAt}}</small></div></div></td>
+          <td data-label="Daily activation">{{if not .ActivationApplicable}}<span class="status-chip status-neutral">Not scheduled</span><small>No weekend dispatch</small>{{else if .ActiveToday}}<span class="status-chip status-success">Active today</span><small>Valid same-day activation recorded</small>{{else}}<span class="status-chip status-warning">Inactive today</span><small>Last Kite login {{time .Trader.SessionLoginAt}}</small>{{end}}</td>
+          <td data-label="Orders"><strong>{{.QueuedCount}}</strong><small>{{.NonterminalCount}} in-flight or unresolved</small></td>
+          <td data-label="Joined"><time>{{time .Trader.CreatedAt}}</time></td>
+          <td class="action-cell" data-label="Actions"><button class="button button-danger-quiet" type="button" data-user-delete data-client-id="{{.Trader.DisplayClientID}}" data-delete-action="/admin/users/{{.Trader.ID}}/delete" {{if not .CanDelete}}disabled title="This trader has a frozen or nonterminal dispatch"{{end}}>Delete</button></td>
+        </tr>
+      {{end}}</tbody>
+    </table>
+  </div>
+  {{else}}<div class="empty-state"><div class="empty-mark" aria-hidden="true">◫</div><h3>No trader profiles</h3><p>Users appear after successful signup and Kite verification.</p></div>{{end}}
+</section>
+
+<dialog class="confirm-dialog" id="delete-user-dialog" data-dialog>
+  <form method="post" action="" data-user-delete-form data-destructive-form>
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <div class="dialog-mark" aria-hidden="true">!</div><h2>Delete trader profile?</h2>
+    <p>This erases credentials and mutable future orders. Redacted dispatch and audit history remains, but UNKNOWN dispatches can no longer be reconciled. Type <strong data-delete-client-label></strong> to confirm.</p>
+    <div class="field"><label for="admin-confirm-client">Zerodha client ID</label><input id="admin-confirm-client" name="confirm_client_id" autocomplete="off" autocapitalize="characters" required data-confirm-input></div>
+    <div class="dialog-actions"><button class="button button-tertiary" type="button" data-dialog-close>Cancel</button><button class="button button-danger" type="submit" disabled data-destructive-submit>Delete trader</button></div>
+  </form>
+</dialog>
+{{template "footer" .}}{{end}}

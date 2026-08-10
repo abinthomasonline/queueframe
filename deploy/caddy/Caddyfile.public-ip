@@ -1,0 +1,19 @@
+{
+	admin off
+	email {$ACME_EMAIL}
+}
+
+{$QUEUEFRAME_CADDY_IP_SITE} {
+	encode zstd gzip
+	header -Server
+	tls {
+		issuer acme {
+			dir https://acme-v02.api.letsencrypt.org/directory
+			profile shortlived
+		}
+	}
+	reverse_proxy queueframe:8080 {
+		# Replace, rather than append to, any client-supplied forwarding chain.
+		header_up X-Forwarded-For {remote_host}
+	}
+}

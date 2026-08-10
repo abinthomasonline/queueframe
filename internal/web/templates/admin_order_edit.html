@@ -1,0 +1,134 @@
+{{define "admin_order_edit"}}{{template "header" .}}
+<header class="page-header compact-page-header">
+  <div>
+    <a class="back-link" href="/admin/orders?date={{.EditOrder.ExecutionDate}}"><span aria-hidden="true">←</span> All orders</a>
+    <p class="eyebrow">Mutable queue item</p>
+    <h1>Edit order</h1>
+    <p class="page-summary">Changes are validated and written atomically. They cannot be applied after the queue freezes.</p>
+  </div>
+</header>
+
+<div class="form-layout">
+  <form method="post" action="{{.FormAction}}" class="panel order-form" data-order-form data-disable-on-submit>
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <input type="hidden" name="queue_revision" value="{{.QueueRevision}}">
+    <input type="hidden" name="original_execution_date" value="{{.EditOrder.ExecutionDate}}">
+
+    <section class="form-section" aria-labelledby="owner-schedule-section">
+      <div class="form-section-heading"><span>01</span><div><h2 id="owner-schedule-section">Owner and schedule</h2><p>Moving the execution date places the order at the end of the destination queue.</p></div></div>
+      <div class="form-grid three-columns">
+        <div class="field readonly-field">
+          <label for="edit-client-id">Zerodha client ID</label>
+          <input id="edit-client-id" value="{{.EditTrader.DisplayClientID}}" readonly aria-readonly="true">
+        </div>
+        <div class="field">
+          <label for="edit-execution-date">Execution date</label>
+          <input id="edit-execution-date" type="date" name="execution_date" min="{{.MinExecutionDate}}" value="{{.EditOrder.ExecutionDate}}" required>
+        </div>
+        <div class="field readonly-field">
+          <label for="edit-position">Current position</label>
+          <input id="edit-position" value="{{.EditOrder.Position}}" readonly aria-readonly="true" aria-describedby="edit-position-hint">
+          <p class="field-hint" id="edit-position-hint">Use the queue controls to change priority.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" aria-labelledby="edit-instrument-section">
+      <div class="form-section-heading"><span>02</span><div><h2 id="edit-instrument-section">Instrument</h2><p>Select a validated NSE or BSE equity symbol.</p></div></div>
+      <div class="form-grid exchange-symbol-grid">
+        <div class="field">
+          <label for="edit-exchange">Exchange</label>
+          <select id="edit-exchange" name="exchange" data-symbol-exchange required>
+            <option value="NSE" {{if eq .EditOrder.Params.Exchange "NSE"}}selected{{end}}>NSE</option>
+            <option value="BSE" {{if eq .EditOrder.Params.Exchange "BSE"}}selected{{end}}>BSE</option>
+          </select>
+        </div>
+        <div class="field combobox-field">
+          <label for="edit-symbol-query">Symbol</label>
+          <div class="combobox" data-symbol-combobox data-search-url="/admin/instruments/search?trader_id={{.EditTrader.ID}}" data-empty-hint="Select a result; free-form symbols are not accepted.">
+            <input id="edit-symbol-query" name="symbol_query" value="{{.EditOrder.Params.TradingSymbol}}" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="edit-symbol-results" aria-describedby="edit-symbol-hint edit-symbol-error" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Search by symbol or company" required data-symbol-query>
+            <input type="hidden" name="trading_symbol" value="{{.EditOrder.Params.TradingSymbol}}" data-symbol-value>
+            <span class="combobox-spinner" data-symbol-spinner hidden aria-hidden="true"></span>
+            <div class="combobox-popover" id="edit-symbol-results" role="listbox" data-symbol-results hidden></div>
+          </div>
+          <p class="field-hint" id="edit-symbol-hint" data-symbol-hint aria-live="polite" aria-atomic="true">{{.EditOrder.Params.Exchange}} · {{.EditOrder.Params.TradingSymbol}} is currently selected. Search to change it.</p>
+          <p class="field-error" id="edit-symbol-error" data-symbol-error role="alert" hidden>Please select a symbol from the results.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" aria-labelledby="edit-order-details-section">
+      <div class="form-section-heading"><span>03</span><div><h2 id="edit-order-details-section">Order details</h2><p>Validity is fixed to DAY. Choose the exact side, product, quantity, and order type.</p></div></div>
+      <div class="order-detail-stack">
+        <fieldset class="field choice-fieldset">
+          <legend>Side</legend>
+          <div class="segmented-control">
+            <label><input type="radio" name="transaction_type" value="SELL" {{if eq .EditOrder.Params.TransactionType "SELL"}}checked{{end}}><span>Sell</span></label>
+            <label><input type="radio" name="transaction_type" value="BUY" {{if eq .EditOrder.Params.TransactionType "BUY"}}checked{{end}}><span>Buy</span></label>
+          </div>
+        </fieldset>
+
+        <div class="form-grid three-columns">
+          <div class="field">
+            <label for="edit-product">Product</label>
+            <select id="edit-product" name="product" required>
+              <option value="CNC" {{if eq .EditOrder.Params.Product "CNC"}}selected{{end}}>CNC · Delivery</option>
+              <option value="MIS" {{if eq .EditOrder.Params.Product "MIS"}}selected{{end}}>MIS · Intraday</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="edit-quantity">Quantity</label>
+            <input id="edit-quantity" type="number" name="quantity" min="1" step="1" inputmode="numeric" value="{{.EditOrder.Params.Quantity}}" required>
+          </div>
+          <div class="field readonly-field">
+            <label for="edit-validity">Validity</label>
+            <input id="edit-validity" value="DAY" readonly aria-readonly="true">
+            <input type="hidden" name="validity" value="DAY">
+          </div>
+        </div>
+
+        <fieldset class="field choice-fieldset order-type-fieldset">
+          <legend>Order type</legend>
+          <div class="choice-cards">
+            <label>
+              <input type="radio" name="order_type" value="LIMIT" data-order-type {{if eq .EditOrder.Params.OrderType "LIMIT"}}checked{{end}}>
+              <span><strong>Limit</strong><small>Submit only at your stated limit price or better.</small></span>
+            </label>
+            <label>
+              <input type="radio" name="order_type" value="MARKET" data-order-type {{if eq .EditOrder.Params.OrderType "MARKET"}}checked{{end}}>
+              <span><strong>Market</strong><small>Submit at the available market; execution price is not guaranteed.</small></span>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="field price-field" data-limit-price-field {{if eq .EditOrder.Params.OrderType "MARKET"}}hidden{{end}}>
+          <label for="edit-limit-price">Limit price</label>
+          <div class="money-input"><span aria-hidden="true">₹</span><input id="edit-limit-price" name="price" value="{{.EditOrder.Params.Price}}" inputmode="decimal" autocomplete="off" placeholder="0.00" aria-describedby="edit-limit-price-hint" data-limit-price {{if eq .EditOrder.Params.OrderType "MARKET"}}disabled{{else}}required{{end}}></div>
+          <p class="field-hint" id="edit-limit-price-hint">Enter the exact exchange-valid tick price.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="form-actions">
+      <a class="button button-tertiary" href="/admin/orders?date={{.EditOrder.ExecutionDate}}">Cancel</a>
+      <button class="button button-primary" type="submit">Save order changes</button>
+    </footer>
+  </form>
+
+  <aside class="form-aside">
+    <section class="panel summary-card">
+      <p class="eyebrow">Queue effect</p>
+      <h2>{{.EditTrader.DisplayClientID}}</h2>
+      <dl class="compact-definition">
+        <div><dt>Current date</dt><dd>{{.EditOrder.ExecutionDate}}</dd></div>
+        <div><dt>Position</dt><dd>{{.EditOrder.Position}}</dd></div>
+        <div><dt>State</dt><dd>{{.EditOrder.State}}</dd></div>
+      </dl>
+    </section>
+    <section class="quiet-card">
+      <strong>Administrator changes are audited.</strong>
+      <p>If another operator or the trader changed the queue, this submission is rejected using the queue revision instead of overwriting their update.</p>
+    </section>
+  </aside>
+</div>
+{{template "footer" .}}{{end}}

@@ -1,0 +1,38 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+.local/
+
+# Persistent SQLite state
+data/
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+*.lock
+*.sqlite
+*.sqlite3
+
+# Backups may contain the database, deployment environment, and TLS keys.
+queueframe-backup-*/
+queueframe-backup-*.tar
+queueframe-backup-*.tar.gz
+queueframe-backup-*.tgz
+queueframe-backup-*.zip
+
+# Version-control and editor metadata
+.git/
+.gitignore
+.DS_Store
+.idea/
+.vscode/
+
+# Local build and test output
+queueframe
+sellatopen
+*.exe
+dist/
+coverage.out
+*.test
+*.log

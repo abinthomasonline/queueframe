@@ -1,0 +1,149 @@
+name: ${COMPOSE_PROJECT_NAME:-queueframe}
+
+services:
+  queueframe:
+    image: ${QUEUEFRAME_IMAGE:-queueframe:local}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      TZ: Asia/Kolkata
+      QUEUEFRAME_ADDR: ":8080"
+      QUEUEFRAME_DB: /data/queueframe.db
+      QUEUEFRAME_BASE_URL: ${QUEUEFRAME_BASE_URL:?run ./deploy/setup.sh first}
+      QUEUEFRAME_MASTER_KEY: ${QUEUEFRAME_MASTER_KEY:?run ./deploy/setup.sh first}
+      QUEUEFRAME_ADMIN_USER: ${QUEUEFRAME_ADMIN_USER:-admin}
+      QUEUEFRAME_ADMIN_PASSWORD: ${QUEUEFRAME_ADMIN_PASSWORD:-}
+      QUEUEFRAME_SECURE_COOKIES: ${QUEUEFRAME_SECURE_COOKIES:-true}
+      QUEUEFRAME_EXPECTED_PUBLIC_IP: ${QUEUEFRAME_EXPECTED_PUBLIC_IP:?a static outbound IP is required}
+      QUEUEFRAME_TRUSTED_PROXY_CIDRS: ${QUEUEFRAME_DOCKER_SUBNET:-172.30.255.0/24},127.0.0.0/8,::1/128
+      QUEUEFRAME_DRY_RUN: ${QUEUEFRAME_DRY_RUN:-true}
+      QUEUEFRAME_WARM_BEFORE: ${QUEUEFRAME_WARM_BEFORE:-10s}
+      QUEUEFRAME_LATE_CUTOFF: ${QUEUEFRAME_LATE_CUTOFF:-5s}
+      QUEUEFRAME_WEB_SESSION_TTL: ${QUEUEFRAME_WEB_SESSION_TTL:-12h}
+    expose:
+      - "8080"
+    volumes:
+      - queueframe-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 90s
+    networks:
+      - queueframe
+
+  caddy-domain:
+    image: caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+    profiles:
+      - domain
+    restart: unless-stopped
+    init: true
+    depends_on:
+      - queueframe
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:-}
+      QUEUEFRAME_HOSTNAME: ${QUEUEFRAME_HOSTNAME:-}
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "443:443/udp"
+    volumes:
+      - ./caddy/Caddyfile.domain:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    networks:
+      - queueframe
+
+  caddy-public-ip:
+    image: caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+    profiles:
+      - public-ip
+    restart: unless-stopped
+    init: true
+    depends_on:
+      - queueframe
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:-}
+      QUEUEFRAME_CADDY_IP_SITE: ${QUEUEFRAME_CADDY_IP_SITE:-}
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "443:443/udp"
+    volumes:
+      - ./caddy/Caddyfile.public-ip:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    networks:
+      - queueframe
+
+  tailscale:
+    image: tailscale/tailscale:v1.102.2@sha256:321ce041508c19079b57a28b6666c8d81ab0b08accc0a2585b3ab663d557ac24
+    profiles:
+      - tailscale
+    hostname: ${TAILSCALE_HOSTNAME:-queueframe}
+    restart: unless-stopped
+    init: true
+    depends_on:
+      - queueframe
+    network_mode: service:queueframe
+    environment:
+      TS_AUTHKEY: ${TAILSCALE_AUTHKEY:-}
+      TS_AUTH_ONCE: "true"
+      TS_HOSTNAME: ${TAILSCALE_HOSTNAME:-queueframe}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /etc/tailscale/serve/serve.json
+      TS_USERSPACE: "true"
+      TS_ACCEPT_DNS: "false"
+      TS_ENABLE_HEALTH_CHECK: "true"
+      TS_LOCAL_ADDR_PORT: 127.0.0.1:9002
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - ./tailscale:/etc/tailscale/serve:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      - /var/run/tailscale:size=4m,mode=0700
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+
+networks:
+  queueframe:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${QUEUEFRAME_DOCKER_SUBNET:-172.30.255.0/24}
+
+volumes:
+  queueframe-data:
+  caddy-data:
+  caddy-config:
+  tailscale-state:

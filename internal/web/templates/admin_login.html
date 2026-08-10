@@ -1,0 +1,26 @@
+{{define "admin_login"}}{{template "header" .}}
+<div class="admin-auth-wrap">
+  <section class="panel admin-auth-card" aria-labelledby="admin-login-title">
+    <a class="back-link" href="/" aria-label="Back to trader access"><span aria-hidden="true">←</span> Trader access</a>
+    <div class="auth-emblem" aria-hidden="true">A</div>
+    <p class="eyebrow">Instance administration</p>
+    <h1 id="admin-login-title">Administrator sign in</h1>
+    <p class="section-lede">Manage users, schedules and dispatch records. Administrator access is not affected by the trader authentication blackout.</p>
+    <form method="post" action="/admin/login" class="form-stack" data-disable-on-submit>
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <div class="field">
+        <label for="admin-username">Username</label>
+        <input id="admin-username" name="username" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <div class="field-label-row">
+          <label for="admin-password">Password</label>
+          <button class="text-button password-toggle" type="button" data-password-toggle="admin-password" aria-controls="admin-password" aria-pressed="false">Show</button>
+        </div>
+        <input id="admin-password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button class="button button-primary button-wide" type="submit">Sign in to administration</button>
+    </form>
+  </section>
+</div>
+{{template "footer" .}}{{end}}

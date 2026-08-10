@@ -1,0 +1,128 @@
+{{define "order_new"}}{{template "header" .}}
+<header class="page-header compact-page-header">
+  <div>
+    <a class="back-link" href="/orders"><span aria-hidden="true">←</span> Orders</a>
+    <p class="eyebrow">New queue item</p>
+    <h1>Create order</h1>
+    <p class="page-summary">Enter the exact order you want Queueframe to submit. No prices, holdings, funds, or quantities are discovered for you.</p>
+  </div>
+</header>
+
+<div class="form-layout">
+  <form method="post" action="/orders" class="panel order-form" data-order-form data-disable-on-submit>
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <section class="form-section" aria-labelledby="schedule-section">
+      <div class="form-section-heading"><span>01</span><div><h2 id="schedule-section">Schedule</h2><p>Select the date this order should enter the queue.</p></div></div>
+      <div class="form-grid two-columns">
+        <div class="field">
+          <label for="execution-date">Execution date</label>
+          <input id="execution-date" type="date" name="execution_date" min="{{.MinExecutionDate}}" value="{{.SelectedDate}}" required aria-describedby="execution-date-hint" data-schedule-preview-url="/orders/schedule-preview">
+          <p class="field-hint" id="execution-date-hint" data-schedule-freeze-hint>Same-day creation closes at {{.FreezeTime}} IST. Trading holidays are not inferred.</p>
+        </div>
+        <div class="field readonly-field">
+          <label for="planned-window">Dispatch schedule</label>
+          <input id="planned-window" value="From {{.DispatchTime}} IST" readonly aria-readonly="true" aria-describedby="planned-window-hint" data-dispatch-schedule>
+          <p class="field-hint" id="planned-window-hint" data-dispatch-hint aria-live="polite" aria-atomic="true">Your precise slot is shown after the order joins the queue.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" aria-labelledby="instrument-section">
+      <div class="form-section-heading"><span>02</span><div><h2 id="instrument-section">Instrument</h2><p>Search and select a currently known NSE or BSE equity symbol.</p></div></div>
+      <div class="form-grid exchange-symbol-grid">
+        <div class="field">
+          <label for="exchange">Exchange</label>
+          <select id="exchange" name="exchange" required data-symbol-exchange>
+            <option value="NSE">NSE</option>
+            <option value="BSE">BSE</option>
+          </select>
+        </div>
+        <div class="field combobox-field">
+          <label for="symbol-query">Symbol</label>
+          <div class="combobox" data-symbol-combobox data-search-url="/instruments/search" data-empty-hint="Select a result; free-form symbols are not accepted.">
+            <input id="symbol-query" name="symbol_query" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="symbol-results" aria-describedby="symbol-hint symbol-error" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Search by symbol or company" required data-symbol-query>
+            <input type="hidden" name="trading_symbol" data-symbol-value>
+            <span class="combobox-spinner" data-symbol-spinner hidden aria-hidden="true"></span>
+            <div class="combobox-popover" id="symbol-results" role="listbox" data-symbol-results hidden></div>
+          </div>
+          <p class="field-hint" id="symbol-hint" data-symbol-hint aria-live="polite" aria-atomic="true">Select a result; free-form symbols are not accepted.</p>
+          <p class="field-error" id="symbol-error" data-symbol-error role="alert" hidden>Please select a symbol from the results.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section" aria-labelledby="payload-section">
+      <div class="form-section-heading"><span>03</span><div><h2 id="payload-section">Order details</h2><p>Validity is fixed to DAY. Choose the exact side, product, quantity, and order type.</p></div></div>
+
+      <div class="order-detail-stack">
+        <fieldset class="field choice-fieldset">
+          <legend>Side</legend>
+          <div class="segmented-control">
+            <label><input type="radio" name="transaction_type" value="SELL" checked><span>Sell</span></label>
+            <label><input type="radio" name="transaction_type" value="BUY"><span>Buy</span></label>
+          </div>
+        </fieldset>
+
+        <div class="form-grid three-columns">
+          <div class="field">
+            <label for="product">Product</label>
+            <select id="product" name="product" required>
+              <option value="CNC">CNC · Delivery</option>
+              <option value="MIS">MIS · Intraday</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="quantity">Quantity</label>
+            <input id="quantity" type="number" name="quantity" min="1" step="1" inputmode="numeric" required>
+          </div>
+          <div class="field readonly-field">
+            <label for="validity-display">Validity</label>
+            <input id="validity-display" value="DAY" readonly aria-readonly="true">
+            <input type="hidden" name="validity" value="DAY">
+          </div>
+        </div>
+
+        <fieldset class="field choice-fieldset order-type-fieldset">
+          <legend>Order type</legend>
+          <div class="choice-cards">
+            <label>
+              <input type="radio" name="order_type" value="LIMIT" checked data-order-type>
+              <span><strong>Limit</strong><small>Submit only at your stated limit price or better.</small></span>
+            </label>
+            <label>
+              <input type="radio" name="order_type" value="MARKET" data-order-type>
+              <span><strong>Market</strong><small>Submit at the available market; execution price is not guaranteed.</small></span>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="field price-field" data-limit-price-field>
+          <label for="limit-price">Limit price</label>
+          <div class="money-input"><span aria-hidden="true">₹</span><input id="limit-price" name="price" inputmode="decimal" autocomplete="off" placeholder="0.00" required aria-describedby="limit-price-hint" data-limit-price></div>
+          <p class="field-hint" id="limit-price-hint">Enter the exact exchange-valid tick price.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="form-actions">
+      <a class="button button-tertiary" href="/orders">Cancel</a>
+      <button class="button button-primary" type="submit">Add to queue</button>
+    </footer>
+  </form>
+
+  <aside class="form-aside">
+    <section class="panel summary-card">
+      <p class="eyebrow">What happens next</p>
+      <ol class="compact-steps">
+        <li><span>1</span><p>The symbol and supported order fields are validated.</p></li>
+        <li><span>2</span><p>The order joins the end of that date’s queue.</p></li>
+        <li><span>3</span><p>You can move it into a different batch before the queue freezes.</p></li>
+      </ol>
+    </section>
+    <section class="quiet-card">
+      <strong>Queueframe does not pre-check your account.</strong>
+      <p>Confirm holdings, funds, authorisation, quantities, lot and freeze sizes, circuit limits, and surveillance eligibility in Zerodha before relying on this order.</p>
+    </section>
+  </aside>
+</div>
+{{template "footer" .}}{{end}}

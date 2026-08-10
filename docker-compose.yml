@@ -1,0 +1,28 @@
+services:
+  queueframe:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    environment:
+      QUEUEFRAME_ADDR: ":8080"
+      QUEUEFRAME_DB: /data/queueframe.db
+      TZ: Asia/Kolkata
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - queueframe-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 90s
+
+volumes:
+  queueframe-data:

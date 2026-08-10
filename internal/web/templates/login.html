@@ -1,0 +1,128 @@
+{{define "login"}}{{template "header" .}}
+<section class="public-intro" aria-labelledby="welcome-title">
+  <p class="eyebrow">Scheduled order dispatch</p>
+  <h1 id="welcome-title">Prepare once. Dispatch on schedule.</h1>
+  <p>Connect your own Kite Connect app, arrange orders in the sequence you want, and keep every dispatch outcome in one clear record.</p>
+</section>
+
+{{if .BlackoutActive}}
+<section class="blackout-notice" aria-labelledby="blackout-title">
+  <div class="notice-icon" aria-hidden="true">!</div>
+  <div>
+    <p class="eyebrow">Authentication paused</p>
+    <h2 id="blackout-title">Trader login is unavailable from {{.BlackoutStart}} to {{.BlackoutEnd}} IST.</h2>
+    <p>Account setup and Kite login reopen after the protected dispatch window. Administrator access remains available.</p>
+  </div>
+</section>
+{{end}}
+
+<div class="auth-grid">
+  <section class="panel signup-panel" aria-labelledby="signup-title">
+    <div class="panel-heading">
+      <div>
+        <p class="eyebrow">First-time setup</p>
+        <h2 id="signup-title">Connect a Zerodha account</h2>
+      </div>
+      <span class="step-badge">Kite verification required</span>
+    </div>
+    <p class="section-lede">These credentials stay on this private instance. After submission, you will sign in on Kite so the returned client ID can be verified.</p>
+    {{if not .SignupEnabled}}<div class="inline-alert" role="alert"><strong>Signup is not configured.</strong><span>The operator must set both the public static egress IP and Kite redirect URL before a new account can be connected.</span></div>{{end}}
+    {{if and .SignupEnabled (not .SignupInviteValid)}}<div class="inline-alert invite-required" role="status"><strong>Invitation required.</strong><span>Ask the instance administrator for a single-use signup link. Returning users can still sign in with Kite.</span></div>{{end}}
+
+    <form method="post" action="/signup" class="form-stack" data-disable-on-submit>
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <div class="field">
+        <label for="signup-client-id">Zerodha client ID</label>
+        <input id="signup-client-id" name="client_id" required autocomplete="username" autocapitalize="characters" spellcheck="false" placeholder="For example, AB1234" {{if or .BlackoutActive (not .SignupEnabled) (not .SignupInviteValid)}}disabled{{end}}>
+        <p class="field-hint">The client ID must belong to the Kite Connect app below.</p>
+      </div>
+      <div class="field">
+        <label for="signup-api-key">API key</label>
+        <input id="signup-api-key" name="api_key" required autocomplete="off" autocapitalize="off" spellcheck="false" {{if or .BlackoutActive (not .SignupEnabled) (not .SignupInviteValid)}}disabled{{end}}>
+      </div>
+      <div class="field">
+        <div class="field-label-row">
+          <label for="signup-api-secret">API secret</label>
+          <button class="text-button password-toggle" type="button" data-password-toggle="signup-api-secret" aria-controls="signup-api-secret" aria-pressed="false">Show</button>
+        </div>
+        <input id="signup-api-secret" name="api_secret" type="password" required autocomplete="new-password" spellcheck="false" {{if or .BlackoutActive (not .SignupEnabled) (not .SignupInviteValid)}}disabled{{end}}>
+        <p class="field-hint">Encrypted at rest and never returned to the browser after setup.</p>
+      </div>
+
+      <details class="setup-guide">
+        <summary>
+          <span>
+            <strong>How to obtain the API key and secret</strong>
+            <small>Deployment values and step-by-step setup</small>
+          </span>
+          <span class="disclosure-marker" aria-hidden="true"></span>
+        </summary>
+        <div class="setup-guide-body">
+          <div class="deployment-values" aria-label="Values for your Kite Connect app">
+            <div class="copy-field">
+              <span>Application egress IP</span>
+              <code id="deployment-ip">{{if .ExpectedIP}}{{.ExpectedIP}}{{else}}Not configured{{end}}</code>
+              {{if .ExpectedIP}}<button class="copy-button" type="button" data-copy-target="deployment-ip">Copy<span class="visually-hidden"> application egress IP</span></button>{{end}}
+            </div>
+            <div class="copy-field">
+              <span>Redirect URL</span>
+              <code id="deployment-redirect">{{if .RedirectURL}}{{.RedirectURL}}{{else}}Not configured{{end}}</code>
+              {{if .RedirectURL}}<button class="copy-button" type="button" data-copy-target="deployment-redirect">Copy<span class="visually-hidden"> redirect URL</span></button>{{end}}
+            </div>
+          </div>
+          <ol class="instruction-list">
+            <li><span>1</span><div><strong>Create your Zerodha trading account</strong><p>If you do not already have one, open the account you will use with Kite and note its Zerodha client ID.</p></div></li>
+            <li><span>2</span><div><strong>Create your Kite Connect developer account</strong><p>Sign in at <a href="https://developers.kite.trade/" target="_blank" rel="noopener noreferrer">developers.kite.trade<span class="visually-hidden"> (opens in a new tab)</span></a> using that Zerodha account.</p></div></li>
+            <li><span>3</span><div><strong>Whitelist this instance’s egress IP</strong><p>Open the developer profile, find <em>IP Whitelist</em>, and enter the application egress IP shown above.</p></div></li>
+            <li><span>4</span><div><strong>Create a Kite Connect app</strong><p>Create an app for this client ID and enter the redirect URL shown above exactly as written.</p></div></li>
+            <li><span>5</span><div><strong>Copy the generated credentials</strong><p>Paste the API key and API secret into this form, then continue to Kite verification.</p></div></li>
+          </ol>
+          <p class="guide-note">Each connected client ID needs its own Kite Connect app and API credentials. Sharing this instance’s IP is limited to the household scope described in the linked Zerodha policy. The operator cannot recover your API secret.</p>
+        </div>
+      </details>
+
+      <label class="check-field" for="family-attestation">
+        <input id="family-attestation" type="checkbox" name="family_attestation" value="yes" required {{if or .BlackoutActive (not .SignupEnabled) (not .SignupInviteValid)}}disabled{{end}}>
+        <span>I confirm that this application instance is hosted exclusively for my use and/or the use of my immediate family members permitted by Zerodha (my spouse, dependent children, and dependent parents), and that its displayed static egress IP is not shared with or used for API order placement by anyone outside this group.</span>
+      </label>
+      <p class="policy-source">Required under the instance’s household-use policy. <a href="https://support.zerodha.com/category/trading-and-markets/general-kite/kite-api/articles/static-ip" target="_blank" rel="noopener noreferrer">Read Zerodha’s current static-IP guidance<span class="visually-hidden"> (opens in a new tab)</span></a>.</p>
+
+      <button class="button button-primary button-wide" type="submit" {{if or .BlackoutActive (not .SignupEnabled) (not .SignupInviteValid)}}disabled{{end}}>
+        <span>Continue to Kite verification</span><span aria-hidden="true">→</span>
+      </button>
+    </form>
+  </section>
+
+  <aside class="auth-side">
+    <section class="panel signin-panel" aria-labelledby="signin-title">
+      <p class="eyebrow">Returning user</p>
+      <h2 id="signin-title">Sign in with Kite</h2>
+      <p>Enter only your Zerodha client ID. You will authenticate directly with Kite.</p>
+      <form method="post" action="/signin" class="form-stack" data-disable-on-submit>
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <div class="field">
+          <label for="signin-client-id">Zerodha client ID</label>
+          <input id="signin-client-id" name="client_id" required autocomplete="username" autocapitalize="characters" spellcheck="false" placeholder="AB1234" {{if .BlackoutActive}}disabled{{end}}>
+        </div>
+        <button class="button button-secondary button-wide" type="submit" {{if .BlackoutActive}}disabled{{end}}>Continue with Kite</button>
+      </form>
+      <p class="signin-note">Sign-in grants dashboard access. It activates an order queue only when completed on that execution date, after 06:00 IST and before the protected preparation window.</p>
+    </section>
+
+    <section class="instance-card" aria-label="About this application instance">
+      <p class="eyebrow">Private instance</p>
+      <h3>Your credentials remain under your operator’s control.</h3>
+      <ul class="quiet-list">
+        <li>Self-hosted; no public signup directory</li>
+        <li>Orders are never generated or discovered</li>
+        <li>Every dispatch attempt is recorded</li>
+      </ul>
+    </section>
+
+    <a class="admin-entry" href="/admin/login">
+      <span><strong>Administrator sign in</strong><small>Username and password · available at any time</small></span>
+      <span aria-hidden="true">→</span>
+    </a>
+  </aside>
+</div>
+{{template "footer" .}}{{end}}

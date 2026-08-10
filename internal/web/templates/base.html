@@ -1,0 +1,145 @@
+{{define "brand"}}
+<span class="brand-mark" aria-hidden="true">
+  <svg viewBox="0 0 28 28" focusable="false">
+    <path d="M4 7.25h12.5M4 14h16.5M4 20.75h9.5"></path>
+    <rect x="19" y="5" width="4.5" height="4.5" rx="1"></rect>
+    <rect x="23" y="11.75" width="4.5" height="4.5" rx="1"></rect>
+    <rect x="16" y="18.5" width="4.5" height="4.5" rx="1"></rect>
+  </svg>
+</span>
+<span class="brand-name">Queueframe</span>
+{{end}}
+
+{{define "clock"}}
+<time class="ist-clock" data-ist-clock data-server-epoch-ms="{{.Now.UnixMilli}}" datetime="{{.Now.Format "2006-01-02T15:04:05-07:00"}}" aria-label="Current time in India, {{.Now.Format "02 January 2006 at 15:04:05"}} IST">
+  <span class="clock-date" data-clock-date>{{.Now.Format "02 Jan 2006"}}</span>
+  <span class="clock-time" data-clock-time>{{.Now.Format "15:04:05.000"}}</span>
+  <span class="clock-zone">IST</span>
+</time>
+{{end}}
+
+{{define "header"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f6f6f2">
+  <meta name="color-scheme" content="light">
+  <meta name="csrf-token" content="{{.CSRF}}">
+  <title>{{if .Title}}{{.Title}} · {{end}}Queueframe</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" sizes="any">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+{{if or .Trader.ID .Admin.ID}}
+<div class="app-layout" data-app-layout>
+  <aside class="side-rail" id="primary-navigation" data-side-rail>
+    <div class="rail-head">
+      <a class="brand" href="{{if .Admin.ID}}/admin{{else}}/orders{{end}}" aria-label="Queueframe home">{{template "brand" .}}</a>
+      <button class="icon-button rail-close" type="button" data-nav-close aria-label="Close navigation">
+        <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#close"></use></svg>
+      </button>
+    </div>
+
+    {{if .Admin.ID}}
+    <p class="rail-kicker">Administration</p>
+    <nav class="primary-nav" aria-label="Administrator navigation">
+      <a href="/admin" data-nav-link data-nav-exact="/admin"><svg class="nav-glyph" aria-hidden="true"><use href="/static/icons.svg#home"></use></svg><span>Overview</span></a>
+      <a href="/admin/invites" data-nav-link><svg class="nav-glyph" aria-hidden="true"><use href="/static/icons.svg#users"></use></svg><span>Invitations</span></a>
+      <a href="/admin/users" data-nav-link><svg class="nav-glyph" aria-hidden="true"><use href="/static/icons.svg#users"></use></svg><span>Users</span></a>
+      <a href="/admin/orders" data-nav-link><svg class="nav-glyph" aria-hidden="true"><use href="/static/icons.svg#orders"></use></svg><span>Orders</span></a>
+      <a href="/admin/dispatches" data-nav-link><svg class="nav-glyph" aria-hidden="true"><use href="/static/icons.svg#dispatch"></use></svg><span>Dispatches</span></a>
+      <a href="/admin/settings" data-nav-link><svg class="nav-glyph" aria-hidden="true"><use href="/static/icons.svg#settings"></use></svg><span>Settings</span></a>
+      <a href="/admin/security" data-nav-link><svg class="nav-glyph" aria-hidden="true"><use href="/static/icons.svg#security"></use></svg><span>Security</span></a>
+    </nav>
+    {{else}}
+    <p class="rail-kicker">Order dispatch</p>
+    <nav class="primary-nav" aria-label="Trader navigation">
+      <a href="/orders" data-nav-link><svg class="nav-glyph" aria-hidden="true"><use href="/static/icons.svg#orders"></use></svg><span>Orders</span></a>
+      <a href="/dispatches" data-nav-link><svg class="nav-glyph" aria-hidden="true"><use href="/static/icons.svg#dispatch"></use></svg><span>Dispatches</span></a>
+      <a href="/account" data-nav-link><svg class="nav-glyph" aria-hidden="true"><use href="/static/icons.svg#account"></use></svg><span>Account</span></a>
+    </nav>
+    {{end}}
+
+    <div class="rail-account">
+      <div class="identity-avatar" aria-hidden="true">{{if .Admin.ID}}A{{else}}Q{{end}}</div>
+      <div class="identity-copy">
+        <strong>{{if .Admin.ID}}{{.Admin.Username}}{{else}}{{.Trader.DisplayClientID}}{{end}}</strong>
+        <span>{{if .Admin.ID}}Administrator{{else}}Zerodha client{{end}}</span>
+      </div>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <button class="icon-button" type="submit" aria-label="Sign out"><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#logout"></use></svg></button>
+      </form>
+    </div>
+  </aside>
+
+  <button class="rail-scrim" type="button" data-nav-close tabindex="-1" aria-label="Close navigation"></button>
+
+  <div class="workspace">
+    <header class="utility-bar">
+      <button class="icon-button menu-button" type="button" data-nav-open aria-controls="primary-navigation" aria-expanded="false" aria-label="Open navigation">
+        <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#menu"></use></svg>
+      </button>
+      <div class="environment-state">
+        {{if .DryRun}}<span class="status-chip status-warning"><span class="status-dot" aria-hidden="true"></span>Dry run</span>{{else}}<span class="status-chip status-danger"><span class="status-dot" aria-hidden="true"></span>Live orders</span>{{end}}
+      </div>
+      {{template "clock" .}}
+    </header>
+    <main class="workspace-main" id="main-content">
+      <div class="flash-stack" aria-live="polite">
+        {{if .Notice}}<div class="flash flash-success" role="status"><strong>Done.</strong><span>{{.Notice}}</span></div>{{end}}
+        {{if .Error}}<div class="flash flash-error" role="alert"><strong>Could not complete that.</strong><span>{{.Error}}</span></div>{{end}}
+      </div>
+{{else}}
+<div class="public-layout">
+  <header class="public-header">
+    <a class="brand" href="/" aria-label="Queueframe home">{{template "brand" .}}</a>
+    {{template "clock" .}}
+  </header>
+  <main class="public-main" id="main-content">
+    <div class="flash-stack" aria-live="polite">
+      {{if .Notice}}<div class="flash flash-success" role="status"><strong>Done.</strong><span>{{.Notice}}</span></div>{{end}}
+      {{if .Error}}<div class="flash flash-error" role="alert"><strong>Could not continue.</strong><span>{{.Error}}</span></div>{{end}}
+    </div>
+{{end}}
+{{end}}
+
+{{define "footer"}}
+  </main>
+  {{if or .Trader.ID .Admin.ID}}
+    <footer class="workspace-footer">
+      <span>Queueframe dispatches submitted orders; it does not guarantee acceptance or execution.</span>
+      <span>All times shown in IST.</span>
+    </footer>
+  </div>
+
+  {{if .Admin.ID}}
+  <nav class="mobile-nav" aria-label="Administrator mobile navigation">
+    <a href="/admin" data-nav-link data-nav-exact="/admin"><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#home"></use></svg><small>Overview</small></a>
+    <a href="/admin/users" data-nav-link><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#users"></use></svg><small>Users</small></a>
+    <a href="/admin/orders" data-nav-link><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#orders"></use></svg><small>Orders</small></a>
+    <button type="button" data-nav-open data-nav-more="/admin/invites,/admin/dispatches,/admin/settings,/admin/security" aria-controls="primary-navigation"><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#more"></use></svg><small>More</small></button>
+  </nav>
+  {{else}}
+  <nav class="mobile-nav" aria-label="Trader mobile navigation">
+    <a href="/orders" data-nav-link><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#orders"></use></svg><small>Orders</small></a>
+    <a href="/dispatches" data-nav-link><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#dispatch"></use></svg><small>Dispatches</small></a>
+    <a href="/account" data-nav-link><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#account"></use></svg><small>Account</small></a>
+  </nav>
+  {{end}}
+</div>
+  {{else}}
+  <footer class="public-footer">
+    <span>Private, self-hosted order dispatch.</span>
+    <span>Not affiliated with or endorsed by Zerodha.</span>
+  </footer>
+</div>
+  {{end}}
+<div class="toast-region" data-toast-region aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>
+{{end}}

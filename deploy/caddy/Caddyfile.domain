@@ -1,0 +1,13 @@
+{
+	admin off
+	email {$ACME_EMAIL}
+}
+
+{$QUEUEFRAME_HOSTNAME} {
+	encode zstd gzip
+	header -Server
+	reverse_proxy queueframe:8080 {
+		# Replace, rather than append to, any client-supplied forwarding chain.
+		header_up X-Forwarded-For {remote_host}
+	}
+}

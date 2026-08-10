@@ -1,0 +1,41 @@
+{{define "admin_settings"}}{{template "header" .}}
+<header class="page-header"><div><p class="eyebrow">Versioned configuration</p><h1>Settings</h1><p class="page-summary">Schedule changes apply only to the next unfrozen trading date. An already prepared queue is never rewritten.</p></div></header>
+
+<div class="settings-layout">
+  <form method="post" action="/admin/settings" class="panel settings-form" data-disable-on-submit>
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <div class="panel-heading"><div><p class="eyebrow">Current version {{.Settings.Version}}</p><h2>Dispatch schedule</h2></div><span class="status-chip status-info">Effective {{.Settings.EffectiveDate}}</span></div>
+    <div class="form-grid two-columns">
+      <div class="field"><label for="settings-dispatch">Dispatch start</label><input id="settings-dispatch" type="time" name="dispatch_clock" step="1" value="{{.Settings.DispatchClock}}" required><p class="field-hint">First per-trader batch request-start target, in IST.</p></div>
+      <div class="field"><label for="settings-freeze">Preparation lead</label><div class="suffix-input"><input id="settings-freeze" type="number" name="freeze_lead_minutes" min="1" max="120" value="{{.FreezeLeadMinutes}}" required><span>minutes</span></div><p class="field-hint">Queues freeze and load into memory this long before dispatch.</p></div>
+      <div class="field"><label for="settings-blackout-start">Trader login blackout starts</label><input id="settings-blackout-start" type="time" name="blackout_start" step="1" value="{{.Settings.UserBlackoutStart}}" required><p class="field-hint">Must begin no later than queue preparation.</p></div>
+      <div class="field"><label for="settings-blackout-end">Trader login blackout ends</label><input id="settings-blackout-end" type="time" name="blackout_end" step="1" value="{{.Settings.UserBlackoutEnd}}" required><p class="field-hint">Must end after the final possible dispatch batch.</p></div>
+      <div class="field"><label for="settings-batch-gap">Batch interval</label><div class="suffix-input"><input id="settings-batch-gap" type="number" name="batch_interval_ms" min="1000" max="10000" step="1" value="{{.BatchIntervalMillis}}" required><span>ms</span></div><p class="field-hint">Recommended: 1050 ms, leaving margin around the per-second rate boundary.</p></div>
+      <div class="field"><label for="settings-max-orders">Maximum orders per trader/date</label><input id="settings-max-orders" type="number" name="max_orders_per_trader" min="1" max="400" value="{{.Settings.MaxOrdersPerTrader}}" required><p class="field-hint">Capped at Zerodha's documented 400 order requests per minute.</p></div>
+      <div class="field"><label for="settings-effective">Effective date</label><input id="settings-effective" type="date" name="effective_date" min="{{.EarliestSettingsDate}}" value="{{.EarliestSettingsDate}}" required><p class="field-hint">Must be an unfrozen date.</p></div>
+    </div>
+    <div class="settings-preview"><span>With these values</span><p>Queues freeze <strong data-settings-freeze-preview>{{.FreezeTime}} IST</strong>, dispatch begins at <strong data-settings-dispatch-preview>{{.Settings.DispatchClock}} IST</strong>, and trader authentication is paused between <strong><span data-settings-blackout-start-preview>{{.Settings.UserBlackoutStart}}</span> and <span data-settings-blackout-end-preview>{{.Settings.UserBlackoutEnd}}</span> IST</strong>.</p></div>
+    <footer class="form-actions"><button class="button button-primary" type="submit">Save as new version</button></footer>
+  </form>
+
+  <aside class="settings-aside">
+    <section class="panel fixed-rules"><p class="eyebrow">Fixed system rules</p><h2>Not configurable</h2><dl class="definition-grid single-column"><div><dt>Timezone</dt><dd>Asia/Kolkata</dd></div><div><dt>Daily activation boundary</dt><dd>06:00 IST</dd></div><div><dt>Rate limit</dt><dd>10/second and 400/minute per trader</dd></div><div><dt>Placement attempts</dt><dd>One; no automatic retry</dd></div><div><dt>Order validity</dt><dd>DAY</dd></div></dl></section>
+    <section class="panel"><p class="eyebrow">Public deployment values</p><h2>Onboarding configuration</h2><div class="mini-value"><span>Static egress IP</span><code>{{if .ExpectedIP}}{{.ExpectedIP}}{{else}}Not configured{{end}}</code></div><div class="mini-value"><span>Redirect URL</span><code>{{if .RedirectURL}}{{.RedirectURL}}{{else}}Not configured{{end}}</code></div><p class="field-hint">These values come from trusted deployment configuration and cannot be edited in the browser.</p></section>
+  </aside>
+</div>
+
+{{if .SettingsHistory}}
+<section class="panel data-panel" aria-labelledby="settings-history-title">
+  <div class="data-toolbar"><div><p class="eyebrow">Immutable audit trail</p><h2 id="settings-history-title">Scheduled versions</h2></div><p class="page-summary">Future versions remain visible here until their effective date and afterward.</p></div>
+  <div class="table-scroll"><table class="data-table"><thead><tr><th scope="col">Version</th><th scope="col">Effective date</th><th scope="col">Dispatch / preparation</th><th scope="col">Trader blackout</th><th scope="col">Batching</th></tr></thead><tbody>
+    {{range .SettingsHistory}}<tr>
+      <td data-label="Version"><strong>v{{.Version}}</strong></td>
+      <td data-label="Effective date"><time>{{.EffectiveDate}}</time></td>
+      <td data-label="Dispatch / preparation"><span class="numeric">{{.DispatchClock}} IST</span><small>{{.FreezeLead}} lead</small></td>
+      <td data-label="Trader blackout"><span class="numeric">{{.UserBlackoutStart}}–{{.UserBlackoutEnd}}</span><small>IST</small></td>
+      <td data-label="Batching"><span>{{.BatchInterval}} interval</span><small>Maximum {{.MaxOrdersPerTrader}} orders</small></td>
+    </tr>{{end}}
+  </tbody></table></div>
+</section>
+{{end}}
+{{template "footer" .}}{{end}}

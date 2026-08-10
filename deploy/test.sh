@@ -15,7 +15,6 @@ SEALED_ENV=$TEST_DIR/already-sealed.env
 FAKE_DOCKER=$TEST_DIR/docker
 FAKE_DOCKER_STATE=$TEST_DIR/fake-docker-recreated
 FAKE_DOCKER_LOG=$TEST_DIR/fake-docker.log
-CADDY_IMAGE='caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648'
 
 # shellcheck source=deploy/lib.sh
 . "$SCRIPT_DIR/lib.sh"
@@ -61,6 +60,20 @@ compose() {
 	_env_file=$1
 	shift
 	docker compose --project-directory "$SCRIPT_DIR" --env-file "$_env_file" -f "$SCRIPT_DIR/compose.yaml" "$@"
+}
+
+rendered_service_image() {
+	_env_file=$1
+	_service=$2
+	compose "$_env_file" config | awk -v service="  $_service:" '
+		$0 == service { selected = 1; next }
+		selected && /^  [^[:space:]]/ { exit }
+		selected && /^[[:space:]]+image:[[:space:]]/ {
+			sub(/^[[:space:]]+image:[[:space:]]*/, "")
+			print
+			exit
+		}
+	'
 }
 
 assert_valid 'IPv4 validation accepts a routable shape' qf_valid_ip 203.0.113.10
@@ -273,8 +286,16 @@ else
 fi
 
 grep -Fq 'profile shortlived' "$SCRIPT_DIR/caddy/Caddyfile.public-ip" || fail_test 'public-IP Caddyfile is missing the shortlived ACME profile'
-grep -Fq 'sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648' "$SCRIPT_DIR/compose.yaml" || fail_test 'Caddy image is not digest-pinned'
-grep -Fq 'sha256:f15d5d3f4a68773a853180b72496f70ba614b64de0878c43fe3da39fe0afba47' "$SCRIPT_DIR/compose.yaml" || fail_test 'Tailscale image is not digest-pinned'
+PROXY_IMAGES=$(compose "$DOMAIN_ENV" --profile '*' config --images | awk '/^(caddy|tailscale\/tailscale):/ { print }')
+CADDY_IMAGE_COUNT=$(printf '%s\n' "$PROXY_IMAGES" | awk '/^caddy:/ { count++ } END { print count + 0 }')
+TAILSCALE_IMAGE_COUNT=$(printf '%s\n' "$PROXY_IMAGES" | awk '/^tailscale\/tailscale:/ { count++ } END { print count + 0 }')
+[ "$CADDY_IMAGE_COUNT" -eq 2 ] || fail_test 'Compose must define exactly two Caddy proxy images'
+[ "$TAILSCALE_IMAGE_COUNT" -eq 1 ] || fail_test 'Compose must define exactly one Tailscale proxy image'
+if printf '%s\n' "$PROXY_IMAGES" | grep -Ev '^(caddy|tailscale/tailscale):[^@[:space:]]+@sha256:[0-9a-f]{64}$' | grep -q .; then
+	fail_test 'every proxy image must include both a tag and a 64-character SHA-256 digest'
+fi
+CADDY_IMAGE=$(rendered_service_image "$DOMAIN_ENV" caddy-domain)
+[ -n "$CADDY_IMAGE" ] || fail_test 'rendered domain Compose configuration has no Caddy image'
 ok 'proxy images are digest-pinned and IP certificates select shortlived'
 
 grep -Fq 'header_up X-Forwarded-For {remote_host}' "$SCRIPT_DIR/caddy/Caddyfile.domain" || fail_test 'domain Caddy does not replace client-supplied forwarding chains'
